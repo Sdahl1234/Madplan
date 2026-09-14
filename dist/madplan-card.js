@@ -37,6 +37,7 @@ const TRANSLATIONS = {
     add_location: "+ Tilføj rum", location_name_placeholder: "Navn på rum",
     empty_location: "— tomt —", place_item: "+ Placér vare",
     select_item: "— Vælg vare —", reserved_for: "Reserveret til {day}",
+    storage_item_search_placeholder: "Søg efter vare…",
     reservations: "Reserveret til: {days}",
     no_storages: "Du har ikke tilføjet nogen opbevaringssteder endnu.",
     items_title: "Vareliste", new_item_placeholder: "Ny vare, f.eks. Kyllingebryst",
@@ -81,6 +82,7 @@ const TRANSLATIONS = {
     add_location: "+ Add compartment", location_name_placeholder: "Compartment name",
     empty_location: "— empty —", place_item: "+ Place item",
     select_item: "— Select item —", reserved_for: "Reserved for {day}",
+    storage_item_search_placeholder: "Search for an item…",
     reservations: "Reserved for: {days}",
     no_storages: "You haven't added any storage places yet.",
     items_title: "Item list", new_item_placeholder: "New item, e.g. Chicken breast",
@@ -170,6 +172,7 @@ class MadplanCard extends HTMLElement {
     this._addLocationName = "";
     this._placeItemFor = null; // { storageId, locationId }
     this._placeItemSelected = "";
+    this._placeItemSearch = "";
     this._placeItemQuantity = 1;
     this._placeItemUnit = DEFAULT_UNIT;
     this._consumeStoredItemFor = null;
@@ -825,10 +828,10 @@ class MadplanCard extends HTMLElement {
               isPlacing
                 ? `
               <div class="place-item-form">
-                <select class="place-item-select" data-storage="${storage.id}" data-location="${location.id}">
-                  <option value="">${this._t("select_item")}</option>
-                  ${this._data.items.map((it) => `<option value="${it.id}" ${this._placeItemSelected === it.id ? "selected" : ""}>${_escHtml(it.name)}</option>`).join("")}
-                </select>
+                <div class="place-item-picker">
+                  <input type="search" class="place-item-search" placeholder="${this._t("storage_item_search_placeholder")}" value="${_escHtml(this._placeItemSearch)}">
+                  <div class="place-item-results">${this._renderPlaceItemResults()}</div>
+                </div>
                 <input type="number" min="0.01" step="any" class="place-item-quantity" placeholder="${this._t("quantity_placeholder")}" value="${this._placeItemQuantity}">
                 <select class="place-item-unit">
                   ${UNITS.map((u) => `<option value="${u}" ${this._placeItemUnit === u ? "selected" : ""}>${this._unitLabel(u)}</option>`).join("")}
@@ -882,6 +885,42 @@ class MadplanCard extends HTMLElement {
             : `<button id="btn-show-add-storage" class="btn-add">${this._t("add_storage")}</button>`
         }
       </div>`;
+  }
+
+  _renderPlaceItemResults() {
+    const searchTerm = this._placeItemSearch.trim().toLocaleLowerCase();
+    const items = this._data.items
+      .filter((item) => item.name.toLocaleLowerCase().includes(searchTerm))
+      .slice(0, 20);
+    if (!items.length) return `<div class="hint">${this._t("no_matching_items")}</div>`;
+    return items.map((item) => `
+      <button type="button" class="place-item-option ${item.id === this._placeItemSelected ? "selected" : ""}" data-id="${item.id}">
+        ${_escHtml(item.name)} <small>${this._qtyLabel(item.default_quantity, item.default_unit)}</small>
+      </button>`).join("");
+  }
+
+  _updatePlaceItemResults() {
+    const container = this.shadowRoot.querySelector(".place-item-results");
+    if (!container) return;
+    container.innerHTML = this._renderPlaceItemResults();
+    this._attachPlaceItemOptionListeners(container);
+  }
+
+  _attachPlaceItemOptionListeners(container) {
+    container.querySelectorAll(".place-item-option").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._placeItemSelected = button.dataset.id;
+        const item = this._data.items.find((entry) => entry.id === button.dataset.id);
+        if (!item) return;
+        this._placeItemQuantity = item.default_quantity ?? 1;
+        this._placeItemUnit = item.default_unit || DEFAULT_UNIT;
+        const quantity = this.shadowRoot.querySelector(".place-item-quantity");
+        const unit = this.shadowRoot.querySelector(".place-item-unit");
+        if (quantity) quantity.value = this._placeItemQuantity;
+        if (unit) unit.value = this._placeItemUnit;
+        this._updatePlaceItemResults();
+      });
+    });
   }
 
   // -- Items tab --------------------------------------------------------
@@ -1243,6 +1282,7 @@ class MadplanCard extends HTMLElement {
       btn.addEventListener("click", () => {
         this._placeItemFor = { storageId: btn.dataset.storage, locationId: btn.dataset.location };
         this._placeItemSelected = "";
+        this._placeItemSearch = "";
         this._placeItemQuantity = 1;
         this._placeItemUnit = DEFAULT_UNIT;
         this._render();
@@ -1252,16 +1292,23 @@ class MadplanCard extends HTMLElement {
       this._placeItemFor = null;
       this._render();
     });
-    root.querySelector(".place-item-select")?.addEventListener("change", (e) => {
-      this._placeItemSelected = e.target.value;
-      const item = this._data.items.find((entry) => entry.id === e.target.value);
-      if (!item) return;
-      this._placeItemQuantity = item.default_quantity ?? 1;
-      this._placeItemUnit = item.default_unit || DEFAULT_UNIT;
-      const quantity = root.querySelector(".place-item-quantity");
-      const unit = root.querySelector(".place-item-unit");
-      if (quantity) quantity.value = this._placeItemQuantity;
-      if (unit) unit.value = this._placeItemUnit;
+    root.querySelector(".place-item-search")?.addEventListener("input", (e) => {
+      this._placeItemSearch = e.target.value;
+      this._updatePlaceItemResults();
+    });
+    root.querySelectorAll(".place-item-option").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._placeItemSelected = button.dataset.id;
+        const item = this._data.items.find((entry) => entry.id === button.dataset.id);
+        if (!item) return;
+        this._placeItemQuantity = item.default_quantity ?? 1;
+        this._placeItemUnit = item.default_unit || DEFAULT_UNIT;
+        const quantity = root.querySelector(".place-item-quantity");
+        const unit = root.querySelector(".place-item-unit");
+        if (quantity) quantity.value = this._placeItemQuantity;
+        if (unit) unit.value = this._placeItemUnit;
+        this._updatePlaceItemResults();
+      });
     });
     root.querySelector(".place-item-quantity")?.addEventListener("input", (e) => (this._placeItemQuantity = e.target.value));
     root.querySelector(".place-item-unit")?.addEventListener("change", (e) => (this._placeItemUnit = e.target.value));
@@ -1480,6 +1527,12 @@ class MadplanCard extends HTMLElement {
       .consume-item-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
       .consume-item-quantity { width: 90px; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--divider-color); padding: 6px 8px; }
       .btn-confirm-consume, .btn-cancel-consume { border: none; border-radius: 8px; padding: 5px 8px; }
+      .place-item-picker { flex: 1 1 240px; min-width: 180px; }
+      .place-item-search { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--divider-color); padding: 6px 8px; }
+      .place-item-results { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; margin-top: 4px; border: 1px solid var(--divider-color); border-radius: 8px; }
+      .place-item-option { border: 0; border-bottom: 1px solid var(--divider-color); background: var(--card-background-color, #fff); color: var(--primary-text-color); padding: 7px 9px; text-align: left; cursor: pointer; }
+      .place-item-option:last-child { border-bottom: 0; }
+      .place-item-option:hover, .place-item-option.selected { background: var(--secondary-background-color, #eef2ee); }
 
       .search-row input, .item-search { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid var(--divider-color); padding: 6px 8px; }
       .search-results { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; }
