@@ -1,177 +1,178 @@
 # Madplan
 
-Madplan er en dansk-fokuseret Home Assistant custom integration og Lovelace-card til ugentlig madplan, lagerstyring og indkøbsliste.
+Madplan is a Danish-focused Home Assistant custom integration and Lovelace card for weekly dinner planning, inventory management, and shopping lists.
 
 ## Installation
 
 ### Integration
 
-Kopiér `custom_components/madplan` til Home Assistants `config/custom_components`-mappe.
+Copy `custom_components/madplan` to Home Assistant's `config/custom_components` directory.
 
-Gå derefter til:
+Then go to:
 
-*Indstillinger → Enheder og tjenester → Tilføj integration → Madplan*
+*Settings -> Devices & services -> Add integration -> Madplan*
 
-Opret integrationen via UI'et. Genstart Home Assistant, hvis integrationen ikke vises med det samme.
+Set up the integration through the UI. Restart Home Assistant if the integration does not appear immediately.
 
-Madplan kan bruges af alle autentificerede Home Assistant-brugere. Der kræves ikke administratorrettigheder for at se eller redigere madplan, lager, varer eller indkøbsliste.
+Madplan can be used by all authenticated Home Assistant users. Administrator privileges are not required to view or edit the dinner plan, inventory, items, or shopping list.
 
-### Lovelace-card
+### Lovelace card
 
-Kortet ligger i:
+The card is located at:
 
 `config/www/madplan-card/madplan-card.js`
 
-Tilføj filen som en Lovelace-ressource under:
+Add the file as a Lovelace resource under:
 
-*Indstillinger → Dashboards → Ressourcer → Tilføj ressource*
+*Settings -> Dashboards -> Resources -> Add resource*
 
 - URL: `/local/madplan-card/madplan-card.js`
 - Type: `JavaScript module`
 
-Tilføj derefter kortet til et dashboard:
+Then add the card to a dashboard:
 
 ```yaml
 type: custom:madplan-card
 entry_id: "<config_entry_id>"
-title: Madplan
+title: Dinner Plan
 ```
 
-`title` er valgfri. `entry_id` findes i URL'en på integrationssiden under *Indstillinger → Enheder og tjenester → Madplan*.
+`title` is optional. The `entry_id` can be found in the URL on the integration page under *Settings -> Devices & services -> Madplan*.
 
-## Faner
+## Tabs
 
-### Madplan
+### Dinner plan
 
-Madplan-fanen viser den valgte uge med en dag pr. kort.
+The Dinner plan tab shows the selected week with one card per day.
 
-- Skriv retten og eventuelle noter i fritekstfeltet.
-- Fritekstfeltet vokser automatisk ved flere linjer.
-- Søg efter varer, der er på lager.
-- Vælg den mængde, der skal bruges i retten.
-- Den valgte vare viser mængde og placering, f.eks. `500 gram · Fryser / Skuffe 2`.
-- Ændringer gemmes automatisk. Status vises som *Gemt*, *Gemmer* eller en fejl.
-- Hvis en vare ikke findes i vareliste eller ikke er på lager, kan den tilføjes til indkøbslisten direkte fra søgningen.
+- Enter the dinner and any notes in the text area.
+- The text area grows automatically when the text spans multiple lines.
+- Search for items that are in storage.
+- Select the quantity to use in the dinner.
+- Selected items show their quantity and location, for example `500 gram · Freezer / Drawer 2`.
+- Changes are saved automatically. The status shows *Saved*, *Saving*, or an error.
+- If an item is not in the item list or is not in stock, it can be added to the shopping list directly from the search.
 
-### Lager
+### Inventory
 
-Lager-fanen er et samlet overblik over, hvad der er tilgængeligt til nye retter.
+The Inventory tab provides an overview of what is available for new dinners.
 
-- Samme vare summeres på tværs af opbevaringssteder, når enheden er den samme.
-- Reserverede mængder trækkes fra.
-- Listen sorteres alfabetisk.
-- Listen kan søges live.
-- Placeringer vises ikke i denne fane, fordi formålet er at se, hvad der kan bruges.
+- The same item is summed across storage locations when the unit is the same.
+- Reserved quantities are subtracted.
+- The list is sorted alphabetically.
+- The list can be searched live.
+- Locations are not shown in this tab because its purpose is to show what can be used.
 
-Eksempel:
+Example:
 
 ```text
-Burgerboller: 2 stk tilgængelig
+Burger buns: 2 pcs available
 ```
 
-### Opbevaring
+### Storage
 
-Opret opbevaringssteder og deres rum, eksempelvis:
+Create storage places and their compartments, for example:
 
 ```text
-Fryser
-├── Skuffe 1
-├── Skuffe 2
-└── Skuffe 3
+Freezer
+├── Drawer 1
+├── Drawer 2
+└── Drawer 3
 ```
 
-Placér derefter varer i det relevante rum. Hver lagerpost har:
+Then place items in the relevant compartment. Each stored item has:
 
-- Samlet mængde
-- Enhed
-- Reserveret mængde
-- Resterende mængde
-- Reservationer med tilhørende ugedage
+- Total quantity
+- Unit
+- Reserved quantity
+- Remaining quantity
+- Reservations with their corresponding weekdays
 
-Hvis du tager noget fra lageret uden at bruge det i en madplan, kan du klikke *Forbrug* på lagerposten og trække den konkrete mængde fra. Kun den ikke-reserverede rest kan forbruges, så planlagte middage beskyttes.
+If you take something from storage without using it in a dinner plan, click *Use* on the storage item and subtract the amount you took. Only the unreserved remainder can be consumed, so planned dinners are protected.
 
-Reserverede varer markeres med en warning-kant, der også er læsbar i mørkt tema.
+Reserved items are marked with a warning border that remains readable in dark themes.
 
-### Varer
+### Items
 
-Vareliste-fanen indeholder de almindelige varer, som kan bruges i lager og madplan.
+The Items tab contains the common items that can be used in inventory and dinner plans.
 
-For hver vare kan du angive:
+For each item, you can specify:
 
-- Navn
-- Standardmængde
-- Standardenhed
+- Name
+- Default quantity
+- Default unit
 
-Eksempel:
+Example:
 
 ```text
-Mælk       1 liter
-Pomfritter 1000 gram
-Burgerboller 1 pakke
+Milk         1 liter
+French fries 1000 gram
+Burger buns  1 pack
 ```
 
-Standardmængden bruges automatisk, når varen vælges i indkøbsliste, lagerplacering eller direkte fra søgningen på Madplan-fanen. Den konkrete mængde kan stadig ændres, uden at standarden ændres.
+The default quantity is used automatically when the item is selected in the shopping list, when placing it in storage, or when adding it directly from the Dinner plan search. The quantity can still be changed for a specific action without changing the default.
 
-Vareliste-fanen har også søgning, redigering og sletning. Søgningen opdateres uden at miste fokus.
+The Items tab also supports searching, editing, and deleting items. Searching updates without losing focus.
 
-### Indkøbsliste
+### Shopping list
 
-Indkøbslisten understøtter mængde, enhed og en valgfri note.
+The shopping list supports quantity, unit, and an optional note.
 
-En vare kan tilføjes på to måder:
+An item can be added in two ways:
 
-1. Fra indkøbslistens formular.
-2. Direkte fra varesøgningen på Madplan-fanen.
+1. From the shopping list form.
+2. Directly from the item search on the Dinner plan tab.
 
-Når du har købt en vare, kan du vælge *Placér i opbevaring*, vælge opbevaringssted og rum, hvorefter varen fjernes fra indkøbslisten og tilføjes til lageret med samme mængde og enhed.
+After buying an item, choose *Place in storage*, select the storage place and compartment, and the item is removed from the shopping list and added to storage with the same quantity and unit.
 
-## Enheder
+## Units
 
-De understøttede enheder er:
+The supported units are:
 
-- `stk`
-- `pakke` (vises som `pakker`)
-- `pose` (vises som `poser`)
+- `stk` (pieces)
+- `pakke` (displayed as `packs`)
+- `pose` (displayed as `bags`)
 - `gram`
 - `liter`
 
-Mængder kan være decimaltal, så eksempelvis `0.5 liter` er gyldigt.
+Quantities can be decimals, so for example `0.5 liter` is valid.
 
-## Reservationer og forbrug
+## Reservations and consumption
 
-Lageret reserverer konkrete mængder, ikke hele lagerposter.
+The inventory reserves specific quantities, not entire stored-item records.
 
-Eksempel med burgerboller:
-
-```text
-På lager:       16 stk
-Lørdag:          6 stk reserveret
-Søndag:          8 stk reserveret
-Onsdag:          2 stk reserveret
-Tilgængelig:     0 stk
-```
-
-Hvis onsdagens `2 stk` fjernes fra madplanen, bliver resultatet:
+Example with burger buns:
 
 ```text
-Lørdag:          6 stk reserveret
-Søndag:          8 stk reserveret
-Tilgængelig:     2 stk
+In storage:       16 pcs
+Saturday:          6 pcs reserved
+Sunday:            8 pcs reserved
+Wednesday:         2 pcs reserved
+Available:         0 pcs
 ```
 
-- Sletning af en middag frigiver de reserverede mængder.
-- Ændring af en middag opdaterer reservationen automatisk.
-- Når en middag markeres som lavet, trækkes den reserverede mængde fra lageret.
-- Hvis kun en del af en lagerpost bruges, bliver resten på lageret.
-- En reservation kan ikke overstige den tilgængelige mængde.
-- Varer med forskellige enheder holdes adskilt, f.eks. `1000 gram` og `2 poser`.
+If Wednesday's `2 pcs` are removed from the dinner plan, the result is:
 
-## Data og kompatibilitet
+```text
+Saturday:          6 pcs reserved
+Sunday:            8 pcs reserved
+Available:         2 pcs
+```
 
-Data gemmes i Home Assistant Storage:
+- Deleting a dinner releases its reserved quantities.
+- Editing a dinner updates its reservations automatically.
+- When a dinner is marked as cooked, its reserved quantity is removed from storage.
+- If only part of a stored item is used, the remainder stays in storage.
+- A reservation cannot exceed the available quantity.
+- Items with different units remain separate, for example `1000 gram` and `2 bags`.
+- Consuming an item outside the dinner plan only affects its unreserved remainder.
+
+## Data and compatibility
+
+Data is stored in Home Assistant Storage:
 
 `.storage/madplan.<entry_id>`
 
-Det følger samme storage-mønster som `thermostat_scheduler`.
+This follows the same storage pattern as `thermostat_scheduler`.
 
-Eksisterende data uden mængde, enhed eller standardværdier får kompatible standarder ved indlæsning, normalt `1 stk`.
+Existing data without quantity, unit, or default values receives compatible defaults when loaded, normally `1 pcs`.
