@@ -1,0 +1,18 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Opsæt Madplan",
+        "data": {
+          "name": "Navn"
+        },
+        "data_description": {
+          "name": "Et navn til denne Madplan-instans"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Madplan er allerede konfigureret"
+    }
+  }
+}

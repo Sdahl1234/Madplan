@@ -1,0 +1,9 @@
+{
+  "domain": "madplan",
+  "name": "Madplan",
+  "config_flow": true,
+  "codeowners": [],
+  "version": "1.0.0",
+  "integration_type": "service",
+  "iot_class": "calculated"
+}
