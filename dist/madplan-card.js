@@ -206,6 +206,7 @@ class MadplanCard extends HTMLElement {
     if (!this._loaded) {
       this._loaded = true;
       this._loadData();
+      this._subscribe();
     }
   }
 
@@ -219,6 +220,26 @@ class MadplanCard extends HTMLElement {
 
   connectedCallback() {
     this._render();
+  }
+
+  disconnectedCallback() {
+    if (this._unsub) {
+      this._unsub();
+      this._unsub = null;
+    }
+    this._loaded = false;
+  }
+
+  async _subscribe() {
+    try {
+      this._unsub = await this._hass.connection.subscribeEvents((event) => {
+        if (event.data?.entry_id === this._config.entry_id) {
+          this._loadData();
+        }
+      }, "madplan_updated");
+    } catch (_) {
+      // Subscription not available; the card still works without live updates.
+    }
   }
 
   async _loadData() {
