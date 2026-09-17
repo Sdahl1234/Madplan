@@ -59,6 +59,7 @@ const TRANSLATIONS = {
     editor_entry_id_label: "Config Entry ID",
     editor_entry_id_hint: "Findes i Indstillinger → Integrationer → Madplan → URL for indgangen",
     editor_title_label: "Korttitel", editor_title_optional: "(valgfri)", editor_title_placeholder: "Madplan",
+    editor_layout_label: "Layout", editor_layout_standard: "Standard", editor_layout_vertical: "Lodret køleskærm",
   },
   en: {
     card_title: "Dinner Plan", loading: "Loading…",
@@ -104,6 +105,7 @@ const TRANSLATIONS = {
     editor_entry_id_label: "Config Entry ID",
     editor_entry_id_hint: "Found in Settings → Integrations → Madplan → entry URL",
     editor_title_label: "Card title", editor_title_optional: "(optional)", editor_title_placeholder: "Dinner Plan",
+    editor_layout_label: "Layout", editor_layout_standard: "Standard", editor_layout_vertical: "Vertical fridge screen",
   },
 };
 
@@ -198,7 +200,7 @@ class MadplanCard extends HTMLElement {
 
   setConfig(config) {
     if (!config.entry_id) throw new Error("madplan-card: 'entry_id' is required");
-    this._config = config;
+    this._config = { layout: "standard", ...config };
   }
 
   set hass(hass) {
@@ -215,7 +217,7 @@ class MadplanCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { entry_id: "" };
+    return { entry_id: "", layout: "standard" };
   }
 
   connectedCallback() {
@@ -384,7 +386,7 @@ class MadplanCard extends HTMLElement {
     const focus = this._captureFocus();
     shadow.innerHTML = `
       <style>${this._css()}</style>
-      <ha-card header="${_escHtml(this._config.title || this._t("card_title"))}">
+      <ha-card class="layout-${this._config.layout === "vertical" ? "vertical" : "standard"}" header="${_escHtml(this._config.title || this._t("card_title"))}">
         <div class="card-content">
           ${this._loading ? `<div class="loading">${this._t("loading")}</div>` : ""}
           ${this._error ? `<div class="error">${_escHtml(this._error)}</div>` : ""}
@@ -891,7 +893,7 @@ class MadplanCard extends HTMLElement {
     return `
       <div class="section">
         <h3>${this._t("storages_title")}</h3>
-        ${storages.length ? storageBlocks : `<div class="hint">${this._t("no_storages")}</div>`}
+        ${storages.length ? `<div class="storages-grid">${storageBlocks}</div>` : `<div class="hint">${this._t("no_storages")}</div>`}
         ${
           this._showAddStorage
             ? `
@@ -951,7 +953,7 @@ class MadplanCard extends HTMLElement {
       <div class="section">
         <h3>${this._t("items_title")}</h3>
         <input type="search" class="item-list-search" data-item-search="true" placeholder="${this._t("item_search_placeholder")}" value="${_escHtml(this._itemSearch)}">
-        <div class="add-item-row">
+        <div class="add-item-row add-common-item-row">
           <input type="text" id="new-item-name" placeholder="${this._t("new_item_placeholder")}" value="${_escHtml(this._newItemName)}">
               <input type="number" min="0.01" step="any" id="new-item-quantity" placeholder="${this._t("quantity_placeholder")}" value="${this._newItemQuantity}">
               <select id="new-item-unit">
@@ -986,12 +988,12 @@ class MadplanCard extends HTMLElement {
             </li>`;
         }
         return `
-          <li>
-            <span>${_escHtml(it.name)} <small>${this._qtyLabel(it.default_quantity, it.default_unit)}</small></span>
-            <span class="item-actions">
-              <button class="btn-edit-item" data-id="${it.id}">${this._t("btn_edit")}</button>
-              <button class="btn-remove-item btn-danger" data-id="${it.id}">${this._t("btn_remove")}</button>
-            </span>
+          <li class="common-item-row">
+            <span class="item-name">${_escHtml(it.name)}</span>
+            <span class="item-quantity">${Number(it.default_quantity)}</span>
+            <span class="item-unit">${this._unitLabel(it.default_unit)}</span>
+            <button class="btn-edit-item" data-id="${it.id}">${this._t("btn_edit")}</button>
+            <button class="btn-remove-item btn-danger" data-id="${it.id}">${this._t("btn_remove")}</button>
           </li>`;
       }).join("")}
     </ul>`;
@@ -1050,64 +1052,6 @@ class MadplanCard extends HTMLElement {
       );
     });
   }
-
-    _renderShopping() {
-      const { shopping_list, items, storages } = this._data;
-      return `
-        <div class="section">
-          <h3>${this._t("shopping_title")}</h3>
-          <div class="add-item-row">
-            <select id="shopping-add-item">
-              <option value="">${this._t("select_item")}</option>
-              ${items.map((it) => `<option value="${it.id}" ${this._shoppingAddItem === it.id ? "selected" : ""}>${_escHtml(it.name)}</option>`).join("")}
-            </select>
-            <input type="number" min="0.01" step="any" id="shopping-add-quantity" placeholder="${this._t("quantity_placeholder")}" value="${this._shoppingAddQuantity}">
-            <select id="shopping-add-unit">
-              ${UNITS.map((u) => `<option value="${u}" ${this._shoppingAddUnit === u ? "selected" : ""}>${this._unitLabel(u)}</option>`).join("")}
-            </select>
-            <input type="text" id="shopping-add-note" placeholder="${this._t("note_placeholder")}" value="${_escHtml(this._shoppingAddNote)}">
-            <button id="btn-add-shopping-item">${this._t("btn_add")}</button>
-          </div>
-          ${
-            shopping_list.length
-              ? `<ul class="item-list">
-                  ${shopping_list.map((entry) => {
-                    const isPlacing = this._placeShoppingFor === entry.id;
-                    const selectedStorage = storages.find((s) => s.id === this._placeShoppingStorageId);
-                    return `
-                    <li class="shopping-row">
-                      <div class="item-row">
-                        <span>${_escHtml(entry.item_name)} <small>${this._qtyLabel(entry.quantity, entry.unit)}</small>${entry.note ? ` — <em>${_escHtml(entry.note)}</em>` : ""}</span>
-                        <span class="item-actions">
-                          <button class="btn-show-place-shopping" data-id="${entry.id}">${this._t("place_in_storage")}</button>
-                          <button class="btn-remove-shopping-item btn-danger" data-id="${entry.id}">${this._t("btn_remove")}</button>
-                        </span>
-                      </div>
-                      ${
-                        isPlacing
-                          ? `
-                        <div class="place-shopping-form">
-                          <select class="place-shopping-storage" data-id="${entry.id}">
-                            <option value="">${this._t("select_storage")}</option>
-                            ${storages.map((s) => `<option value="${s.id}" ${this._placeShoppingStorageId === s.id ? "selected" : ""}>${_escHtml(s.name)}</option>`).join("")}
-                          </select>
-                          <select class="place-shopping-location" data-id="${entry.id}">
-                            <option value="">${this._t("select_location")}</option>
-                            ${(selectedStorage?.locations || []).map((l) => `<option value="${l.id}" ${this._placeShoppingLocationId === l.id ? "selected" : ""}>${_escHtml(l.name)}</option>`).join("")}
-                          </select>
-                          <button class="btn-confirm-place-shopping" data-id="${entry.id}">${this._t("btn_add")}</button>
-                          <button class="btn-cancel-place-shopping">${this._t("btn_cancel")}</button>
-                        </div>`
-                          : ""
-                      }
-                    </li>`;
-                  }).join("")}
-                </ul>`
-              : `<div class="hint">${this._t("no_shopping_items")}</div>`
-          }
-        </div>`;
-    }
-
   // -- Shopping tab --------------------------------------------------------
 
   _renderShopping() {
@@ -1115,7 +1059,7 @@ class MadplanCard extends HTMLElement {
     return `
       <div class="section">
         <h3>${this._t("shopping_title")}</h3>
-        <div class="add-item-row">
+        <div class="add-item-row add-shopping-row">
           <select id="shopping-add-item">
             <option value="">${this._t("select_item")}</option>
             ${items.map((it) => `<option value="${it.id}" ${this._shoppingAddItem === it.id ? "selected" : ""}>${_escHtml(it.name)}</option>`).join("")}
@@ -1517,8 +1461,8 @@ class MadplanCard extends HTMLElement {
       .card-content { padding: 8px 16px 16px; }
       .loading, .error, .hint { padding: 8px 0; color: var(--secondary-text-color); }
       .error { color: var(--error-color, #db4437); }
-      .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--divider-color); }
-      .tab { flex: 1; background: none; border: none; padding: 8px 4px; cursor: pointer; font-weight: 500; color: var(--secondary-text-color); border-bottom: 2px solid transparent; }
+      .tabs { display: flex; flex-wrap: nowrap; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--divider-color); overflow-x: auto; }
+      .tab { flex: 1 0 auto; background: none; border: none; padding: 8px 4px; cursor: pointer; font-weight: 500; color: var(--secondary-text-color); border-bottom: 2px solid transparent; white-space: nowrap; }
       .tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
       button { font-family: inherit; cursor: pointer; }
 
@@ -1583,6 +1527,7 @@ class MadplanCard extends HTMLElement {
       .inventory-list small { color: var(--secondary-text-color); font-weight: 400; }
 
       .storage-card { border: 1px solid var(--divider-color); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+      .storages-grid { display: block; }
       .storage-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
       .storage-name { font-weight: 700; }
       .storage-type { color: var(--secondary-text-color); font-size: 0.85em; background: var(--secondary-background-color, #eee); border-radius: 10px; padding: 1px 8px; }
@@ -1618,6 +1563,53 @@ class MadplanCard extends HTMLElement {
       .modal { background: var(--card-background-color, #fff); border-radius: 12px; padding: 16px; max-width: 320px; }
       .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
       .modal-actions button { border: none; border-radius: 8px; padding: 6px 12px; }
+
+      .layout-vertical .card-content { padding: 12px 14px 18px; font-size: 1.08rem; }
+      .layout-vertical .tabs { display: flex; flex-wrap: nowrap; gap: 6px; border-bottom: 0; margin-bottom: 14px; overflow-x: auto; }
+      .layout-vertical .tab { flex: 1 0 auto; min-height: 48px; border-radius: 10px; border: 1px solid var(--divider-color); background: var(--secondary-background-color, #f7f7f7); padding: 10px 8px; font-size: 0.95rem; white-space: nowrap; }
+      .layout-vertical .tab.active { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color)); }
+      .layout-vertical .week-nav { gap: 8px; }
+      .layout-vertical .week-nav button { min-height: 46px; padding: 10px 14px; font-size: 1rem; }
+      .layout-vertical .week-label { font-size: 1.1rem; }
+      .layout-vertical .days-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .layout-vertical .day-card, .layout-vertical .storage-card, .layout-vertical .location, .layout-vertical .item-list li, .layout-vertical .inventory-list li { border-radius: 10px; padding: 14px; }
+      .layout-vertical .day-name { font-size: 1.18rem; }
+      .layout-vertical .dinner-text { min-height: 84px; padding: 11px 12px; font-size: 1.05rem; line-height: 1.45; }
+      .layout-vertical input, .layout-vertical select, .layout-vertical button { min-height: 44px; font-size: 1rem; }
+      .layout-vertical .chip { width: 100%; box-sizing: border-box; justify-content: space-between; border-radius: 10px; padding: 8px 10px; font-size: 0.98rem; }
+      .layout-vertical .chosen-items, .layout-vertical .location-items { flex-direction: column; align-items: stretch; }
+      .layout-vertical .search-result-row, .layout-vertical .search-shopping-row, .layout-vertical .place-item-form, .layout-vertical .add-item-row, .layout-vertical .place-shopping-form, .layout-vertical .consume-item-form { flex-direction: column; align-items: stretch; }
+      .layout-vertical .search-quantity, .layout-vertical .search-unit, .layout-vertical .search-result, .layout-vertical .search-shopping-quantity, .layout-vertical .search-shopping-unit, .layout-vertical .place-item-picker, .layout-vertical .place-item-quantity, .layout-vertical .place-item-unit, .layout-vertical #shopping-add-quantity, .layout-vertical #shopping-add-unit, .layout-vertical .consume-item-quantity { width: 100%; min-width: 0; flex: 1 1 auto; }
+      .layout-vertical .search-result-row { display: grid; grid-template-columns: minmax(70px, 0.8fr) minmax(86px, 0.8fr); gap: 6px; align-items: stretch; }
+      .layout-vertical .search-result-row .search-result { grid-column: 1 / -1; }
+      .layout-vertical .search-result-row .search-quantity, .layout-vertical .search-result-row .search-unit { width: 100%; }
+      .layout-vertical .place-item-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+      .layout-vertical .place-item-form .place-item-picker { grid-column: 1 / -1; width: 100%; }
+      .layout-vertical .place-item-form .place-item-quantity, .layout-vertical .place-item-form .place-item-unit { grid-column: auto; width: 100%; }
+      .layout-vertical .place-item-form .btn-confirm-place-item, .layout-vertical .place-item-form .btn-cancel-place-item { width: 100%; }
+      .layout-vertical .add-common-item-row { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(70px, 0.7fr) minmax(86px, 0.8fr) minmax(76px, 0.7fr); align-items: stretch; }
+      .layout-vertical .add-common-item-row #new-item-name, .layout-vertical .add-common-item-row #new-item-quantity, .layout-vertical .add-common-item-row #new-item-unit, .layout-vertical .add-common-item-row #btn-add-item { width: 100%; min-width: 0; }
+      .layout-vertical .add-shopping-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(70px, 0.55fr) minmax(84px, 0.65fr) minmax(0, 1fr) minmax(76px, 0.55fr); align-items: stretch; }
+      .layout-vertical .add-shopping-row #shopping-add-item, .layout-vertical .add-shopping-row #shopping-add-quantity, .layout-vertical .add-shopping-row #shopping-add-unit, .layout-vertical .add-shopping-row #shopping-add-note, .layout-vertical .add-shopping-row #btn-add-shopping-item { width: 100%; min-width: 0; }
+      .layout-vertical .item-list li.common-item-row, .layout-vertical .item-list li.edit-item-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(58px, 0.5fr) minmax(78px, 0.7fr) minmax(72px, 0.6fr) minmax(82px, 0.7fr); gap: 6px; align-items: center; }
+      .layout-vertical .common-item-row .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .layout-vertical .common-item-row .item-quantity, .layout-vertical .common-item-row .item-unit { color: var(--secondary-text-color); white-space: nowrap; }
+      .layout-vertical .item-list li.edit-item-row input, .layout-vertical .item-list li.edit-item-row select, .layout-vertical .item-list li.common-item-row button, .layout-vertical .item-list li.edit-item-row button { width: 100%; min-width: 0; }
+      .layout-vertical .day-actions, .layout-vertical .item-row, .layout-vertical .storage-header, .layout-vertical .location-header { align-items: stretch; }
+      .layout-vertical .item-row, .layout-vertical .storage-header { flex-direction: column; }
+      .layout-vertical .item-actions, .layout-vertical .day-actions { flex-wrap: wrap; }
+      .layout-vertical .day-actions .save-status { flex: 1 1 100%; }
+      .layout-vertical .day-actions button { flex: 1 1 0; }
+      .layout-vertical .item-actions button { flex: 1 1 100%; }
+      .layout-vertical .shopping-row .item-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(180px, 1fr); align-items: center; }
+      .layout-vertical .shopping-row .item-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .layout-vertical .shopping-row .item-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .layout-vertical .shopping-row .item-actions button { width: 100%; min-width: 0; flex: 1 1 auto; }
+      .layout-vertical .shopping-row .place-shopping-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(74px, 0.6fr) minmax(86px, 0.7fr); align-items: stretch; }
+      .layout-vertical .shopping-row .place-shopping-form select, .layout-vertical .shopping-row .place-shopping-form button { width: 100%; min-width: 0; }
+      .layout-vertical .storages-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+      .layout-vertical .storage-card { margin-bottom: 0; }
+      .layout-vertical .locations { grid-template-columns: 1fr; }
     `;
   }
 }
@@ -1642,7 +1634,7 @@ class MadplanCardEditor extends HTMLElement {
       <style>
         .row { margin-bottom: 12px; }
         label { display: block; font-size: 0.85em; color: var(--secondary-text-color); margin-bottom: 4px; }
-        input { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); }
+        input, select { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); }
         .hint { font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; }
       </style>
       <div class="row">
@@ -1654,9 +1646,17 @@ class MadplanCardEditor extends HTMLElement {
         <label>${_translate(this._hass, "editor_title_label")} ${_translate(this._hass, "editor_title_optional")}</label>
         <input id="title" placeholder="${_translate(this._hass, "editor_title_placeholder")}" value="${_escHtml(this._config.title || "")}">
       </div>
+      <div class="row">
+        <label>${_translate(this._hass, "editor_layout_label")}</label>
+        <select id="layout">
+          <option value="standard" ${(this._config.layout || "standard") === "standard" ? "selected" : ""}>${_translate(this._hass, "editor_layout_standard")}</option>
+          <option value="vertical" ${this._config.layout === "vertical" ? "selected" : ""}>${_translate(this._hass, "editor_layout_vertical")}</option>
+        </select>
+      </div>
     `;
     this.shadowRoot.querySelector("#entry_id").addEventListener("input", (e) => this._update("entry_id", e.target.value));
     this.shadowRoot.querySelector("#title").addEventListener("input", (e) => this._update("title", e.target.value));
+    this.shadowRoot.querySelector("#layout").addEventListener("change", (e) => this._update("layout", e.target.value));
   }
 
   _update(key, value) {
